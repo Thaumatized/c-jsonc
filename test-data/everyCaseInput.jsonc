@@ -1,0 +1,34 @@
+{
+    "object": {
+        "arr": [
+            "Do what you want 'cause a pirate is free\nYou are a pirate!",
+            "Yar har, fiddle de dee\nBeing a pirate is alright to be\nDo what you want 'cause a pirate is free\nYou are a pirate!",
+            "You are a pirate! Yay!",
+            "We've got us a map (A map!)\nTo lead us to a hidden box\nThat's all locked up with locks (With locks!)\nAnd buried deep away\nWe'll dig up the box (The box!)\nWe know it's full of precious booty!\nBurst open the locks!\nAnd then we'll say, \"Hooray!\"",
+            "Yar har, fiddle de dee\nIf you love to sail the sea\nYou are a pirate!\nWeigh anchor!",
+            "Yar har, fiddle de dee\nBeing a pirate is alright with me!\nDo what you want 'cause a pirate is free\nYou are a pirate!\nAr yar, ahoy and avast\nDig in the dirt and dig diggity fast\nHang the black flag at the end of the mast!\nYou are a pirate!",
+            "Hahahahaha! Yay!",
+            "We're sailing away (Set sail!)\nAdventure awaits on every shore\nWe set sail and explore (Ya-har!)\nAnd run and jump all day (Yay!)\nWe float on our boat (The boat!)\nUntil it's time to drop the anchor\nThen hang up our coats (Aye-aye!)\nUntil we sail again!",
+            "Yar har, fiddle de dee\nIf you love to sail the sea\nYou are a pirate!\nLand ho!",
+            "Yar har, fiddle de dee\nBeing a pirate is alright with me!\nDo what you want 'cause a pirate is free\nYou are a pirate!",
+            "Yar har, wind at your back, lads, wherever you go!\nBlue sky above and blue ocean below\nYou are a pirate!\nHahahahahaha! You're a pirate!",
+        ],
+        "child": {
+            "number": 69.5,
+        },
+        "neglectedSibling":{
+            "mood": ":("
+        }
+    },
+    "emptyObject": {},
+    // Non obtrusive comment
+    "array": [],
+    "emptyArray": [],
+    "otherEmptyArray": [ // obtrusive comment
+    ],
+    "integer": 42,
+    "number": /*Another obtrusive // comment*/ 3.14159265358979323846,
+    "string": "naru/nuora/tms.",
+    "boolean": "true",
+    "null": null,
+}
