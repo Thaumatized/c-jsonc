@@ -39,9 +39,9 @@ char *jsonGetString(JSON *json, const char *key);
 double *jsonGetNumber(JSON *json, const char *key);
 bool *jsonGetBool(JSON *json, const char *key);
 
-bool jsonSetKey(JSON *parentJson, JSON *newChildJson, const char *key);
-bool jsonSetObject(JSON *parentJson, const char *key);
-bool jsonSetArray(JSON *parentJson, const char *key);
-bool jsonSetString(JSON *parentJson, JSON *newChildJson, const char *key);
-bool jsonSetNumber(JSON *parentJson, JSON *newChildJson, const char *key);
-bool jsonSetBool(JSON *parentJson, JSON *newChildJson, const char *key);
+void jsonSetKey(JSON *parentJson, JSON *newChildJson, const char *key);
+void jsonSetObject(JSON *parentJson, JSON *newChildJson, const char *key);
+void jsonSetArray(JSON *parentJson, JSON *newChildJson, const char *key);
+void jsonSetString(JSON *parentJson, const char *string, const char *key);
+void jsonSetNumber(JSON *parentJson, const double number, const char *key);
+void jsonSetBool(JSON *parentJson, const bool boolean, const char *key);

@@ -754,7 +754,7 @@ JSON *jsonGetArray(JSON *json, const char *key)
         // Error handled by jsonGetKey
         return NULL;
     }
-    else if (arrayJson->type != JSON_OBJECT)
+    else if (arrayJson->type != JSON_ARRAY)
     {
         printf("JSON GET ERROR: json with key %s is not an array", key);
         exit(1);
@@ -808,7 +808,7 @@ bool *jsonGetBool(JSON *json, const char *key)
         // Error handled by jsonGetKey
         return NULL;
     }
-    else if (boolJson->type != JSON_STRING)
+    else if (boolJson->type != JSON_BOOLEAN)
     {
         printf("JSON GET ERROR: json with key %s is not a boolean", key);
         exit(1);
@@ -819,12 +819,13 @@ bool *jsonGetBool(JSON *json, const char *key)
     }
 }
 
-bool jsonSetKey(JSON *parentJson, JSON *newChildJson, const char *key) {
+void jsonSetKey(JSON *parentJson, JSON *newChildJson, const char *key) {
     // First we check if the keys already exists, replacing them.
     int keyIndex = 0;
     int keyLength = 0;
     JSON *currentJson = parentJson;
 
+    char *lastKey;
     while (key[keyIndex] != '\0')
     {
         bool isNumberKey = key[keyIndex] == '[';
@@ -838,6 +839,12 @@ bool jsonSetKey(JSON *parentJson, JSON *newChildJson, const char *key) {
         char keyBuffer[keyLength+1];
         strncpy(keyBuffer, key+keyIndex, keyLength);
         keyBuffer[keyLength] = '\0';
+
+        if(key[keyIndex+keyLength] == '\0')
+        {
+            lastKey = strdup(keyBuffer);
+            break;
+        }
 
         if(isNumberKey)
         {
@@ -886,24 +893,87 @@ bool jsonSetKey(JSON *parentJson, JSON *newChildJson, const char *key) {
         }
         keyIndex += keyLength;
     }
+
+    // TODO: set json label and set it as child
+
+    free(lastKey);
 }
 
-bool jsonSetObject(JSON *parentJson, const char *key){
-
+void jsonSetObject(JSON *parentJson, JSON *newChildJson, const char *key){
+    if(newChildJson->type != JSON_OBJECT)
+    {
+        printf("JSON SET ERROR: Object is not an object");
+        exit(1);
+    }
+    jsonSetKey(parentJson, newChildJson, key);
 }
 
-bool jsonSetArray(JSON *parentJson, const char *key){
-
+void jsonSetArray(JSON *parentJson, JSON *newChildJson, const char *key){
+    if(newChildJson->type != JSON_ARRAY)
+    {
+        printf("JSON SET ERROR: Array is not an array");
+        exit(1);
+    }
+    jsonSetKey(parentJson, newChildJson, key);
 }
 
-bool jsonSetString(JSON *parentJson, JSON *newChildJson, const char *key){
+void jsonSetString(JSON *parentJson, const char *string, const char *key){
+    JSON *newJson = malloc(sizeof(JSON));
+    char *newString = strdup(string);
+    if(newJson == NULL || newString == NULL)
+    {
+        printf("JSON SET ERROR: Failed to allocate memory");
+        exit(1);
+    }
 
+    // boolean - true
+    *newJson = (JSON){
+        .type = JSON_STRING,
+        .label = NULL,
+        .boolean = newString,
+        .previousSibling = NULL,
+        .nextSibling = NULL,
+    };
+
+    jsonSetKey(parentJson, newJson, key);
 }
 
-bool jsonSetNumber(JSON *parentJson, JSON *newChildJson, const char *key){
+voidjsonSetNumber(JSON *parentJson, const double number, const char *key){
+    JSON *newJson = malloc(sizeof(JSON));
+    if(newJson == NULL)
+    {
+        printf("JSON SET ERROR: Failed to allocate memory");
+        exit(1);
+    }
 
+    // boolean - true
+    *newJson = (JSON){
+        .type = JSON_NUMBER,
+        .label = NULL,
+        .number = number,
+        .previousSibling = NULL,
+        .nextSibling = NULL,
+    };
+
+    jsonSetKey(parentJson, newJson, key);
 }
 
-bool jsonSetBool(JSON *parentJson, JSON *newChildJson, const char *key){
+void jsonSetBool(JSON *parentJson, const bool boolean, const char *key){
+    JSON *newJson = malloc(sizeof(JSON));
+    if(newJson == NULL)
+    {
+        printf("JSON SET ERROR: Failed to allocate memory");
+        exit(1);
+    }
 
+    // boolean - true
+    *newJson = (JSON){
+        .type = JSON_BOOLEAN,
+        .label = NULL,
+        .boolean = boolean,
+        .previousSibling = NULL,
+        .nextSibling = NULL,
+    };
+
+    jsonSetKey(parentJson, newJson, key);
 }
