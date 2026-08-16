@@ -144,9 +144,33 @@ void testParseAndStringify(const char *testName, char *asString, JSON_DATA_UNION
     free(testString);
 }
 
-int main(int argc, char const *argv[])
+/**
+ * gets the JSON at key from parent, and makes sure it stringyfies to expectedString.
+ * set expectedString to NULL to expect NULL returned.
+ */
+void testKeying(const char *testName, char *key, JSON *parent, const char *expectedString)
 {
-    testCategory("PREP");
+    int testNameLongLength = strlen(testName) + 32;
+    char matchTestName[testNameLongLength];
+    memset(matchTestName, '\0', testNameLongLength);
+    strcpy(matchTestName, testName);
+    strcat(matchTestName, ", matches");
+
+    JSON *foundJson = jsonGetKey(parent, key);
+    if(expectedString != NULL)
+    {
+        char *stringyfied = jsonStringify(foundJson);
+        expectString(matchTestName, expectedString, stringyfied);
+    }
+    else
+    {
+        expectPointer(matchTestName, NULL, foundJson);
+    }
+}
+
+int testCategoryParseAndStringify()
+{
+    testCategory("Parse and Stringify Prep");
     JSON *testJson = NULL;
     JSON_DATA_UNION testDataUnion = {};
 
@@ -204,28 +228,104 @@ int main(int argc, char const *argv[])
     char *everyCaseoutputString = fileAsString("test-data/everyCaseOutput.jsonc");
     testParseAndStringify("EveryCaseInput", everyCaseInputString, NULL, JSON_OBJECT, everyCaseoutputString);
 
-    jsonFree(testJson);
-
-    //JSON *jsonParse(char *data);
-
     /*
-    char *jsonStringify(JSON *data);
-    void jsonFree(JSON *json);
-
-    JSON *jsonGetKey(JSON *json, const char *key);
-    JSON *jsonGetObject(JSON *json, const char *key);
-    JSON *jsonGetArray(JSON *json, const char *key);
-    char *jsonGetString(JSON *json, const char *key);
-    double *jsonGetNumber(JSON *json, const char *key);
-    bool *jsonGetBool(JSON *json, const char *key);
-
-    bool jsonSetKey(JSON *parentJson, JSON *newChildJson, const char *key);
-    bool jsonSetObject(JSON *parentJson, const char *key);
-    bool jsonSetArray(JSON *parentJson, const char *key);
-    bool jsonSetString(JSON *parentJson, JSON *newChildJson, const char *key);
-    bool jsonSetNumber(JSON *parentJson, JSON *newChildJson, const char *key);
-    bool jsonSetBool(JSON *parentJson, JSON *newChildJson, const char *key);
+        TODO: test something like parsing jsonParse("{\"object\":{\"firstborn\":5,\"secondborn\":[1, 2, 3],\"thirdborn\":\"hello\"},\"array\":[],\"string\":\"potatoes\",\"number\":7\"}");
+        It has extra \" at the end which will fail the parsing and give a confusing error
     */
+    jsonFree(testJson);
+}
+
+void testCategoryGetAndSet()
+{   
+    testCategory("GET and SET PREP");
+    JSON *jsonWithOneOfEverythingForGetting = jsonParse(
+        "{\"object\":{\"firstborn\":5,\"secondborn\":[0, 1, 2, 3],\"thirdborn\":\"hello\"},\"array\":[\"zeroindex\", \"hydrogen\", \"helium\", \"lithium\", \"beyrllium\", \"boron\"],\"string\":\"potatoes\",\"number\":7,\"bool\":true}"
+    );
+    JSON *testJson = malloc(sizeof(JSON));
+    if(testJson == NULL)
+    {
+        printf("JSON TEST ERROR: Failed to allocate memory");
+        exit(1);
+    }
+
+    // NOTE: We insert this JSON several times. This causes an issue, where its previousSibling and nextSibling values will be mangled
+    // This is fine for tests, but will cause segfault if we try to index beyond a pointer to this that has been reinserted since.
+    // We should really be making a new testJson for each test.
+    *testJson = (JSON){
+        .type = JSON_BOOLEAN,
+        .label = NULL,
+        .boolean = true,
+        .previousSibling = NULL,
+        .nextSibling = NULL,
+    };
+
+    testCategory("KEYING");
+    testKeying("First Level", "string", jsonWithOneOfEverythingForGetting,"\"potatoes\"");
+    testKeying("Start of Array", "array[0]", jsonWithOneOfEverythingForGetting,"\"zeroindex\"");
+    testKeying("Middle of Array", "array[1]", jsonWithOneOfEverythingForGetting,"\"hydrogen\"");
+    testKeying("End of Array", "array[5]", jsonWithOneOfEverythingForGetting,"\"boron\"");
+    testKeying("Start of Object", "object.firstborn", jsonWithOneOfEverythingForGetting,"5");
+    testKeying("Middle of Object", "object.secondborn", jsonWithOneOfEverythingForGetting,"[0,1,2,3]");
+    testKeying("End of Object", "object.thirdborn", jsonWithOneOfEverythingForGetting,"\"hello\"");
+    testKeying("Two Levels Deep", "object.secondborn[1]", jsonWithOneOfEverythingForGetting,"1");
+    testKeying("Nullpointer for non-existing", "MADE_UP_KEY.NO-EXIST", jsonWithOneOfEverythingForGetting,NULL);
+
+
+    testCategory("TYPE CHECKS");
+    expectNumber("Allows Object", JSON_OBJECT, jsonGetObject(jsonWithOneOfEverythingForGetting, "object")->type);
+    expectNumber("Allows Array", JSON_ARRAY, jsonGetArray(jsonWithOneOfEverythingForGetting, "array")->type);
+    expectString("Allows String", "potatoes", jsonGetString(jsonWithOneOfEverythingForGetting, "string"));
+    expectNumber("Allows Number", 7, *jsonGetNumber(jsonWithOneOfEverythingForGetting, "number"));
+    expectNumber("Allows Bool", true, *jsonGetBool(jsonWithOneOfEverythingForGetting, "bool"));
+
+    testCategory("SET VALUES");
+    jsonSetKey(jsonWithOneOfEverythingForGetting, testJson, "newfirstlevelchild");
+    expectPointer("Insert To First Level", testJson, jsonGetKey(jsonWithOneOfEverythingForGetting, "newfirstlevelchild"));
+    jsonSetKey(jsonWithOneOfEverythingForGetting, testJson, "array[7]");
+    expectPointer("Insert Into Array - new element", testJson, jsonGetKey(jsonWithOneOfEverythingForGetting, "array[7]"));
+    expectNumber("Insert Into Array - Added nulls to index correctly", JSON_NULL, jsonGetKey(jsonWithOneOfEverythingForGetting, "array[6]")->type);
+    jsonSetKey(jsonWithOneOfEverythingForGetting, testJson, "array[5]");
+    expectPointer("Insert Into Array - Replace exact key", testJson, jsonGetKey(jsonWithOneOfEverythingForGetting, "array[5]"));
+
+    jsonSetKey(jsonWithOneOfEverythingForGetting, testJson, "object.fourthborn");
+    expectPointer("Insert Into Object - new element", testJson, jsonGetKey(jsonWithOneOfEverythingForGetting, "object.fourthborn"));
+    jsonSetKey(jsonWithOneOfEverythingForGetting, testJson, "object.thirdborn");
+    expectPointer("Insert Into Object - Replace exact key", testJson, jsonGetKey(jsonWithOneOfEverythingForGetting, "object.thirdborn"));
+    jsonSetKey(jsonWithOneOfEverythingForGetting, testJson, "object.secondborn[5]");
+    expectPointer("Insert To Third Level", testJson, jsonGetKey(jsonWithOneOfEverythingForGetting, "object.secondborn[5]"));
+
+    //printf("\n\n\n%s\n\n\n", jsonStringify(jsonWithOneOfEverythingForGetting));
+
+
+    testCategory("SET SPECIFIC TYPES");
+    /*
+    void jsonSetKey(JSON *parentJson, JSON *newChildJson, const char *key);
+    void jsonSetObject(JSON *parentJson, JSON *newChildJson, const char *key);
+    void jsonSetArray(JSON *parentJson, JSON *newChildJson, const char *key);
+    */
+
+    jsonSetString(jsonWithOneOfEverythingForGetting, "Mr Sandman, Sand Me A Man", "Sandman");
+    expectString("Sets String", "Mr Sandman, Sand Me A Man", jsonGetString(jsonWithOneOfEverythingForGetting, "Sandman"));
+    jsonSetNumber(jsonWithOneOfEverythingForGetting, 123456, "bugnumba");
+    expectNumber("Sets Number", 123456, *jsonGetNumber(jsonWithOneOfEverythingForGetting, "bugnumba"));
+    jsonSetBool(jsonWithOneOfEverythingForGetting, false, "other_bool");
+    expectNumber("Sets Bool", false, *jsonGetBool(jsonWithOneOfEverythingForGetting, "other_bool"));
+}
+
+void testCategoryMiscellaneous()
+{
+    /*
+    we should be testing
+    void jsonFree(JSON *json);
+    here, but, it is impossible to test as C has no way of checking if pointer has been freed.
+    */
+}
+
+int main(int argc, char const *argv[])
+{
+    testCategoryParseAndStringify();
+    testCategoryGetAndSet();
+    testCategoryMiscellaneous();
 
     return !allSuccess;
 }

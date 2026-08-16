@@ -37,13 +37,14 @@ char *charToEscapecode(char c)
     return NULL;
 }
 
-char EscapecodeToChar(char *str)
+// As a pointer so we can return NULL in case of invalid input
+char *escapecodeToChar(char *str)
 {
     int count = sizeof(EscapeSequences)/sizeof(EscapeSequences[0]);
     for (int i = 0; i < count; i++)
     {
         if (!strcmp(str, EscapeSequences[i].sequence)) {
-            return EscapeSequences[i].rawChar;
+            return &(EscapeSequences[i].rawChar);
         }
     }
     return NULL;
@@ -165,14 +166,14 @@ JSON *jsonParseRecursor(char *data, char* label) {
                 escapeCharacters++;
                 dataIndex++;
                 char escapeSequence[] = {data[dataIndex], data[dataIndex+1], '\0'};
-                char c = EscapecodeToChar(escapeSequence);
+                char *c = escapecodeToChar(escapeSequence);
                 if(c == NULL)
                 {
                     printf("JSON PARSE ERROR: Invalid escape character \\%c\n", data[dataIndex+1]);                    
                     //free(newJson);
                     exit(1);
                 }
-                newJson->string[dataIndex-escapeCharacters] = c;
+                newJson->string[dataIndex-escapeCharacters] = *c;
             }
             else
             {
@@ -754,7 +755,7 @@ JSON *jsonGetArray(JSON *json, const char *key)
         // Error handled by jsonGetKey
         return NULL;
     }
-    else if (arrayJson->type != JSON_OBJECT)
+    else if (arrayJson->type != JSON_ARRAY)
     {
         printf("JSON GET ERROR: json with key %s is not an array", key);
         exit(1);
@@ -808,7 +809,7 @@ bool *jsonGetBool(JSON *json, const char *key)
         // Error handled by jsonGetKey
         return NULL;
     }
-    else if (boolJson->type != JSON_STRING)
+    else if (boolJson->type != JSON_BOOLEAN)
     {
         printf("JSON GET ERROR: json with key %s is not a boolean", key);
         exit(1);
@@ -819,7 +820,7 @@ bool *jsonGetBool(JSON *json, const char *key)
     }
 }
 
-bool jsonSetKey(JSON *parentJson, JSON *newChildJson, const char *key) {
+void jsonSetKey(JSON *parentJson, JSON *newChildJson, const char *key) {
     // First we check if the keys already exists, replacing them.
     int keyIndex = 0;
     int keyLength = 0;
@@ -828,7 +829,7 @@ bool jsonSetKey(JSON *parentJson, JSON *newChildJson, const char *key) {
     while (key[keyIndex] != '\0')
     {
         bool isNumberKey = key[keyIndex] == '[';
-        if(isKeySeparator(key[keyIndex])) keyIndex++;
+        if(isNumberKey) keyIndex++; // skip opening bracket
         keyLength = 0;
         while(!isKeySeparator(key[keyIndex+keyLength]))
         {
@@ -839,71 +840,272 @@ bool jsonSetKey(JSON *parentJson, JSON *newChildJson, const char *key) {
         strncpy(keyBuffer, key+keyIndex, keyLength);
         keyBuffer[keyLength] = '\0';
 
+        keyIndex += keyLength;
+        //skip the closing bracket
+        if(isNumberKey) 
+        {
+            keyIndex++;
+        }
+        //skip the dot
+        if(key[keyIndex] == '.')
+        {
+            keyIndex ++;
+        }
+
+        bool lastKey = key[keyIndex] == '\0';
+
+        JSON_TYPES pathBuildingType = (!lastKey && key[keyIndex] == '[') ? JSON_ARRAY : JSON_OBJECT;
+
+        if(lastKey && !isNumberKey)
+        {
+            newChildJson->label = strdup(keyBuffer);
+        }
+
         if(isNumberKey)
         {
             if(currentJson->type != JSON_ARRAY)
             {
                 printf("JSON SET WARNING: JSON element \"%s\" is not of type ARRAY, but was attempted to index into with index %s", currentJson->label, keyBuffer);
-                return false;
+                return;
             }
 
+            bool nullsInsterted = false;
+            if(currentJson->children == NULL)
+            {
+                nullsInsterted = true;
+                JSON *newJson = malloc(sizeof(JSON));
+                if(newJson == NULL)
+                {
+                    printf("JSON PARSE ERROR: Failed to allocate memory");
+                    exit(1);
+                }
+
+                *newJson = (JSON){
+                    .type = JSON_NULL,
+                    .label = NULL,
+                    .string = NULL,
+                    .previousSibling = NULL,
+                    .nextSibling = NULL,
+                };
+
+                currentJson->children = newJson;
+            }
             JSON *child = currentJson->children;
-            JSON *lastChild = child;
             int key = atoi(keyBuffer);
-            for(; key > 0 && child != NULL; key--)
+            for(int loopKey = 0; loopKey < key; loopKey++)
+            {
+                if(child->nextSibling == NULL)
+                {
+                    nullsInsterted = true;
+                    JSON *newJson = malloc(sizeof(JSON));
+                    if(newJson == NULL)
+                    {
+                        printf("JSON SET KEY ERROR: Failed to allocate memory");
+                        exit(1);
+                    }
+
+                    *newJson = (JSON){
+                        .type = JSON_NULL,
+                        .label = NULL,
+                        .string = NULL,
+                        .previousSibling = child,
+                        .nextSibling = NULL,
+                    };
+
+                    child->nextSibling = newJson;
+                }
+                child = child->nextSibling;
+            }
+
+            if(!lastKey)
+            {
+                if(!nullsInsterted)
+                {
+                    currentJson = child;
+                }
+                else
+                {
+                    JSON *newJson = malloc(sizeof(JSON));
+                    if(newJson == NULL)
+                    {
+                        printf("JSON SET KEY ERROR: Failed to allocate memory");
+                        exit(1);
+                    }
+
+                    *newJson = (JSON){
+                        .type = pathBuildingType,
+                        .label = NULL,
+                        .children = NULL,
+                        .previousSibling = child->previousSibling,
+                        .nextSibling = NULL,
+                    };
+
+                    child->nextSibling = newJson;
+                    currentJson = newJson;
+                }
+            }
+            else
+            {
+                if(child->previousSibling)
+                {
+                    child->previousSibling->nextSibling = newChildJson;
+                    newChildJson->previousSibling = child->previousSibling;
+                    newChildJson->nextSibling = child->nextSibling;
+                    jsonFree(child);
+                    return;
+                }
+                else
+                {
+                    currentJson->children = newChildJson;
+                    newChildJson->nextSibling = child->nextSibling;
+                    jsonFree(child);
+                    return;
+                }
+            }
+        }
+        else
+        {
+            JSON *lastChild = NULL;
+            JSON *child = currentJson->children;
+            while(child != NULL && strcmp(child->label, keyBuffer) != 0)
             {
                 lastChild = child;
                 child = child->nextSibling;
             }
 
-            //TODO fill with nulls until we get to correct index
-            if(child == NULL)
+            if(lastKey)
             {
-                printf("JSON GET WARNING: index %s is out of bounds in json elment %s", keyBuffer, currentJson->label);
-                return NULL;
+                if(child == NULL)
+                {
+                    if(lastChild != NULL)
+                    {
+                        lastChild->nextSibling = newChildJson;
+                        newChildJson->previousSibling = lastChild;
+                    }
+                    else
+                    {
+                        currentJson->children = newChildJson;
+                    }
+                }
+                else
+                {
+                    newChildJson->previousSibling = child->previousSibling;
+                    newChildJson->nextSibling = child->nextSibling;
+                    child->previousSibling->nextSibling = newChildJson;
+                    jsonFree(child);
+                }
             }
+            else
+            {
+                if(child != NULL)
+                {
+                    currentJson = child;
+                }
+                else
+                {   
+                    JSON *newJson = malloc(sizeof(JSON));
+                    if(newJson == NULL)
+                    {
+                        printf("JSON SET KEY ERROR: Failed to allocate memory");
+                        exit(1);
+                    }
 
-            currentJson = child;
+                    *newJson = (JSON){
+                        .type = pathBuildingType,
+                        .label = strdup(keyBuffer),
+                        .children = NULL,
+                        .previousSibling = NULL,
+                        .nextSibling = NULL,
+                    };
 
-            //skip the closing bracket
-            keyIndex++;
+                    if(lastChild != NULL)
+                    {
+                        lastChild->nextSibling = newJson;
+                        newJson->previousSibling = lastChild;
+                    }
+                    else
+                    {
+                        currentJson->children = newJson;
+                    }
+                    currentJson = newJson;
+                }
+            }
         }
-        else
-        {
-            JSON *child = currentJson->children;
-            while(child != NULL && strcmp(child->label, keyBuffer) != 0)
-            {
-                child = child->nextSibling;
-            }
-
-            if(child == NULL)
-            {
-                printf("JSON GET WARNING: key %s no found in %s", keyBuffer, currentJson->label);
-                return NULL;
-            }
-
-            currentJson = child;
-        }
-        keyIndex += keyLength;
     }
 }
 
-bool jsonSetObject(JSON *parentJson, const char *key){
-
+void jsonSetObject(JSON *parentJson, JSON *newChildJson, const char *key){
+    if(newChildJson->type != JSON_OBJECT)
+    {
+        printf("JSON SET ERROR: Object is not an object");
+        exit(1);
+    }
+    jsonSetKey(parentJson, newChildJson, key);
 }
 
-bool jsonSetArray(JSON *parentJson, const char *key){
-
+void jsonSetArray(JSON *parentJson, JSON *newChildJson, const char *key){
+    if(newChildJson->type != JSON_ARRAY)
+    {
+        printf("JSON SET ERROR: Array is not an array");
+        exit(1);
+    }
+    jsonSetKey(parentJson, newChildJson, key);
 }
 
-bool jsonSetString(JSON *parentJson, JSON *newChildJson, const char *key){
+void jsonSetString(JSON *parentJson, const char *string, const char *key){
+    JSON *newJson = malloc(sizeof(JSON));
+    char *newString = strdup(string);
+    if(newJson == NULL || newString == NULL)
+    {
+        printf("JSON SET ERROR: Failed to allocate memory");
+        exit(1);
+    }
 
+    *newJson = (JSON){
+        .type = JSON_STRING,
+        .label = NULL,
+        .string = newString,
+        .previousSibling = NULL,
+        .nextSibling = NULL,
+    };
+
+    jsonSetKey(parentJson, newJson, key);
 }
 
-bool jsonSetNumber(JSON *parentJson, JSON *newChildJson, const char *key){
+void jsonSetNumber(JSON *parentJson, const double number, const char *key){
+    JSON *newJson = malloc(sizeof(JSON));
+    if(newJson == NULL)
+    {
+        printf("JSON SET ERROR: Failed to allocate memory");
+        exit(1);
+    }
 
+    *newJson = (JSON){
+        .type = JSON_NUMBER,
+        .label = NULL,
+        .number = number,
+        .previousSibling = NULL,
+        .nextSibling = NULL,
+    };
+
+    jsonSetKey(parentJson, newJson, key);
 }
 
-bool jsonSetBool(JSON *parentJson, JSON *newChildJson, const char *key){
+void jsonSetBool(JSON *parentJson, const bool boolean, const char *key){
+    JSON *newJson = malloc(sizeof(JSON));
+    if(newJson == NULL)
+    {
+        printf("JSON SET ERROR: Failed to allocate memory");
+        exit(1);
+    }
 
+    *newJson = (JSON){
+        .type = JSON_BOOLEAN,
+        .label = NULL,
+        .boolean = boolean,
+        .previousSibling = NULL,
+        .nextSibling = NULL,
+    };
+
+    jsonSetKey(parentJson, newJson, key);
 }
