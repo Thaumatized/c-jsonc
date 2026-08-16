@@ -1061,11 +1061,10 @@ void jsonSetString(JSON *parentJson, const char *string, const char *key){
         exit(1);
     }
 
-    // boolean - true
     *newJson = (JSON){
         .type = JSON_STRING,
         .label = NULL,
-        .boolean = newString,
+        .string = newString,
         .previousSibling = NULL,
         .nextSibling = NULL,
     };
@@ -1081,7 +1080,6 @@ void jsonSetNumber(JSON *parentJson, const double number, const char *key){
         exit(1);
     }
 
-    // boolean - true
     *newJson = (JSON){
         .type = JSON_NUMBER,
         .label = NULL,
@@ -1101,7 +1099,6 @@ void jsonSetBool(JSON *parentJson, const bool boolean, const char *key){
         exit(1);
     }
 
-    // boolean - true
     *newJson = (JSON){
         .type = JSON_BOOLEAN,
         .label = NULL,

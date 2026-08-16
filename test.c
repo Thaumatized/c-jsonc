@@ -272,7 +272,7 @@ void testCategoryGetAndSet()
 
 
     testCategory("TYPE CHECKS");
-    expectNumber("Allows Objet", JSON_OBJECT, jsonGetObject(jsonWithOneOfEverythingForGetting, "object")->type);
+    expectNumber("Allows Object", JSON_OBJECT, jsonGetObject(jsonWithOneOfEverythingForGetting, "object")->type);
     expectNumber("Allows Array", JSON_ARRAY, jsonGetArray(jsonWithOneOfEverythingForGetting, "array")->type);
     expectString("Allows String", "potatoes", jsonGetString(jsonWithOneOfEverythingForGetting, "string"));
     expectNumber("Allows Number", 7, *jsonGetNumber(jsonWithOneOfEverythingForGetting, "number"));
@@ -288,22 +288,28 @@ void testCategoryGetAndSet()
     expectPointer("Insert Into Array - Replace exact key", testJson, jsonGetKey(jsonWithOneOfEverythingForGetting, "array[5]"));
 
     jsonSetKey(jsonWithOneOfEverythingForGetting, testJson, "object.fourthborn");
-    expectPointer("Insert Into Objet - new element", testJson, jsonGetKey(jsonWithOneOfEverythingForGetting, "object.fourthborn"));
+    expectPointer("Insert Into Object - new element", testJson, jsonGetKey(jsonWithOneOfEverythingForGetting, "object.fourthborn"));
     jsonSetKey(jsonWithOneOfEverythingForGetting, testJson, "object.thirdborn");
-    expectPointer("Insert Into Objet - Replace exact key", testJson, jsonGetKey(jsonWithOneOfEverythingForGetting, "object.thirdborn"));
+    expectPointer("Insert Into Object - Replace exact key", testJson, jsonGetKey(jsonWithOneOfEverythingForGetting, "object.thirdborn"));
     jsonSetKey(jsonWithOneOfEverythingForGetting, testJson, "object.secondborn[5]");
     expectPointer("Insert To Third Level", testJson, jsonGetKey(jsonWithOneOfEverythingForGetting, "object.secondborn[5]"));
 
     //printf("\n\n\n%s\n\n\n", jsonStringify(jsonWithOneOfEverythingForGetting));
 
-/*
-    bool jsonSetKey(JSON *parentJson, JSON *newChildJson, const char *key);
-    bool jsonSetObject(JSON *parentJson, const char *key);
-    bool jsonSetArray(JSON *parentJson, const char *key);
-    bool jsonSetString(JSON *parentJson, JSON *newChildJson, const char *key);
-    bool jsonSetNumber(JSON *parentJson, JSON *newChildJson, const char *key);
-    bool jsonSetBool(JSON *parentJson, JSON *newChildJson, const char *key);
+
+    testCategory("SET SPECIFIC TYPES");
+    /*
+    void jsonSetKey(JSON *parentJson, JSON *newChildJson, const char *key);
+    void jsonSetObject(JSON *parentJson, JSON *newChildJson, const char *key);
+    void jsonSetArray(JSON *parentJson, JSON *newChildJson, const char *key);
     */
+
+    jsonSetString(jsonWithOneOfEverythingForGetting, "Mr Sandman, Sand Me A Man", "Sandman");
+    expectString("Sets String", "Mr Sandman, Sand Me A Man", jsonGetString(jsonWithOneOfEverythingForGetting, "Sandman"));
+    jsonSetNumber(jsonWithOneOfEverythingForGetting, 123456, "bugnumba");
+    expectNumber("Sets Number", 123456, *jsonGetNumber(jsonWithOneOfEverythingForGetting, "bugnumba"));
+    jsonSetBool(jsonWithOneOfEverythingForGetting, false, "other_bool");
+    expectNumber("Sets Bool", false, *jsonGetBool(jsonWithOneOfEverythingForGetting, "other_bool"));
 }
 
 void testCategoryMiscellaneous()
